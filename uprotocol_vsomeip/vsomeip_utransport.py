@@ -218,7 +218,14 @@ class VsomeipTransport(UTransport):
         _: int,
     ) -> None:
         """
-        handle responses from service with callback to listener registered
+        Handle responses from SOME/IP service with callback to Publish UListener registered
+
+        :param message_type: The SOME/IP message type
+        :param service_id: The service ID
+        :param instance: instance of the service
+        :param event_id: The event/topic ID
+        :param data: The data
+        :return: None
         """
         if message_type == vsomeip.vSOMEIP.Message_Type.REQUEST.value:
             return None
@@ -242,7 +249,10 @@ class VsomeipTransport(UTransport):
         request_id: int,
     ) -> bytearray:
         """
-        Return from the send response set for the response of the initial request message
+        Service return the send response set for the initial request message
+        :param message_type: The SOME/IP message type
+        :param request_id: The SOME/IP request id, application_id+session_id
+        :return: Response data
         """
         if message_type != vsomeip.vSOMEIP.Message_Type.REQUEST.value:
             return None  # do nothing
@@ -274,7 +284,15 @@ class VsomeipTransport(UTransport):
         request_id: int,
     ) -> None:
         """
-        handle responses from service with callback to listener registered
+        Handle responses from service on a method request with callback to Request UListener registered
+
+        :param message_type: The SOME/IP message type
+        :param service_id: The service ID
+        :param instance: instance of the service
+        :param method_id: The RPC method ID
+        :param data: The data
+        :param request_id: The SOME/IP request id, application_id+session_id
+        :return: None
         """
         if message_type != vsomeip.vSOMEIP.Message_Type.REQUEST.value:
             return None
@@ -305,7 +323,12 @@ class VsomeipTransport(UTransport):
         request_id: int,
     ) -> None:
         """
-        callback for RPC method to call the response listener registered
+        Handle response received by client with callback to the response UListener registered
+
+        :param message_type: The SOME/IP message type
+        :param data: The data
+        :param request_id: The SOME/IP request id, application_id+session_id
+        :return: None
         """
         if message_type != vsomeip.vSOMEIP.Message_Type.RESPONSE.value:
             return None
@@ -321,6 +344,12 @@ class VsomeipTransport(UTransport):
         return None
 
     def _send_publish(self, message) -> UStatus:
+        """
+        Send a Publish message over SOME/IP transport
+
+        :param message: UProtocol message
+        :return: UStatus
+        """
         _logger.debug("SEND PUBLISH")
         uri = message.attributes.source
         if not UriValidator.is_topic(uri):
@@ -337,6 +366,12 @@ class VsomeipTransport(UTransport):
         return UStatus(message="publish", code=UCode.OK)
 
     def _send_request(self, message) -> UStatus:
+        """
+        Send a Request message over SOME/IP transport
+
+        :param message: UProtocol message
+        :return: UStatus
+        """
         _logger.debug("SEND REQUEST")
         uri = message.attributes.sink
         if not UriValidator.is_rpc_method(uri):
@@ -355,6 +390,12 @@ class VsomeipTransport(UTransport):
         return UStatus(message="request", code=UCode.OK)
 
     def _send_response(self, message) -> UStatus:
+        """
+        Save a Response message against the uProtocol request id
+
+        :param message: UProtocol message
+        :return: UStatus
+        """
         _logger.debug("SEND RESPONSE")
         uri = message.attributes.sink
         if not UriValidator.is_rpc_response(uri):
@@ -373,6 +414,15 @@ class VsomeipTransport(UTransport):
         return UStatus(message="response", code=UCode.OK)
 
     def _register_request_listener(self, source_filter, listener, sink_filter) -> UStatus:
+        """
+        Register a Request UListener for source and sink filters to be called when
+        a message is received.
+
+        :param source_filter: The source address pattern
+        :param sink_filter: The sink address pattern
+        :param listener: The Request UListener that will execute when the message is received on the given UUri.
+        :return: Returns UStatus
+        """
         try:
             source_uri = Utils.get_uuri_string(source_filter)
             sink_uri = Utils.get_uuri_string(sink_filter)
@@ -390,6 +440,15 @@ class VsomeipTransport(UTransport):
         return UStatus(message="listener", code=UCode.OK)
 
     def _register_response_listener(self, source_filter, listener, sink_filter) -> UStatus:
+        """
+        Register a Response UListener for source and sink filters to be called when
+        a message is received.
+
+        :param source_filter: The source address pattern
+        :param sink_filter: The sink address pattern
+        :param listener: The Response UListener that will execute when the message is received on the given UUri.
+        :return: Returns UStatus
+        """
         try:
             source_uri = Utils.get_uuri_string(source_filter)
             sink_uri = Utils.get_uuri_string(sink_filter)
@@ -405,6 +464,14 @@ class VsomeipTransport(UTransport):
         return UStatus(message="listener", code=UCode.OK)
 
     def _register_publish_listener(self, source_filter, listener, _) -> UStatus:
+        """
+        Register a Publish UListener for source and sink filters to be called when
+        a message is received.
+
+        :param source_filter: The source address pattern
+        :param listener: The Publish UListener that will execute when the message is received on the given UUri.
+        :return: Returns UStatus
+        """
         try:
             with self._subscribe_lock:
                 _, service_id = Utils.split_u32_to_u16(source_filter.ue_id)
@@ -424,13 +491,12 @@ class VsomeipTransport(UTransport):
 
     def _unregister_request_listener(self, source_filter, listener, sink_filter) -> UStatus:
         """
-        Unregister UListener for UUri source and sink filters. Messages
-        arriving at this topic will no longer be processed by this listener.
+        Unregister a Request UListener for UUri source and sink filters
 
-        @param source_filter The UAttributes source address pattern
-        @param sink_filter The UAttributes sink address pattern
-        @param listener The UListener that will no longer want to be registered
-        @return Returns UStatus
+        :param source_filter: Source address pattern
+        :param sink_filter: Sink address pattern
+        :param listener: The Request UListener that will no longer want to be registered
+        :return: Returns UStatus
         """
         try:
             source_uri = Utils.get_uuri_string(source_filter)
@@ -450,13 +516,12 @@ class VsomeipTransport(UTransport):
 
     def _unregister_response_listener(self, source_filter, listener, sink_filter) -> UStatus:
         """
-        Unregister UListener for UUri source and sink filters. Messages
-        arriving at this topic will no longer be processed by this listener.
+        Unregister a Response UListener for UUri source and sink filters
 
-        @param source_filter The UAttributes source address pattern
-        @param sink_filter The UAttributes sink address pattern
-        @param listener The UListener that will no longer want to be registered
-        @return Returns UStatus
+        :param source_filter: Source address pattern
+        :param sink_filter: Sink address pattern
+        :param listener: The Response UListener that will no longer want to be registered
+        :return: Returns UStatus
         """
         try:
             source_uri = Utils.get_uuri_string(source_filter)
@@ -476,13 +541,11 @@ class VsomeipTransport(UTransport):
 
     def _unregister_publish_listener(self, source_filter, listener, _) -> UStatus:
         """
-        Unregister UListener for UUri source and sink filters. Messages
-        arriving at this topic will no longer be processed by this listener.
+        Unregister a Publish UListener for UUri source and sink filters
 
-        @param source_filter The UAttributes source address pattern
-        @param sink_filter The UAttributes sink address pattern
-        @param listener The UListener that will no longer want to be registered
-        @return Returns UStatus
+        :param source_filter: Source address pattern
+        :param listener: The Request UListener that will no longer want to be registered
+        :return: Returns UStatus
         """
         try:
             with self._subscribe_lock:
@@ -540,11 +603,10 @@ class VsomeipTransport(UTransport):
         Register a listener for source and sink filters to be called when
         a message is received.
 
-        @param source_filter The source address pattern
-        @param sink_filter The sink address pattern
-        @param listener The UListener that will execute when the message is received on the given UUri.
-
-        @return Returns UStatus
+        :param source_filter: The source address pattern
+        :param sink_filter: The sink address pattern
+        :param listener: The UListener that will execute when the message is received on the given UUri.
+        :return: Returns UStatus
         """
         flag = Utils.get_listener_message_type(source_filter, sink_filter)
 
@@ -567,10 +629,10 @@ class VsomeipTransport(UTransport):
         Unregister UListener for UUri source and sink filters. Messages
         arriving at this topic will no longer be processed by this listener.
 
-        @param source_filter The UAttributes source address pattern
-        @param sink_filter The UAttributes sink address pattern
-        @param listener The UListener that will no longer want to be registered
-        @return Returns UStatus
+        :param source_filter: Source address pattern
+        :param sink_filter: Sink address pattern
+        :param listener: The UListener that will no longer want to be registered
+        :return: Returns UStatus
         """
         flag = Utils.get_listener_message_type(source_filter, sink_filter)
 
@@ -584,7 +646,8 @@ class VsomeipTransport(UTransport):
             return self._unregister_publish_listener(source_filter, listener, sink_filter)
 
     def get_source(self) -> UUri:
-        """Get the source URI of the transport.
+        """
+        Get the source URI of the transport.
 
         :return: source URI
         """
